@@ -1,0 +1,227 @@
+---
+title: "Exploratory_Data_Analysis_2"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "T:/MUGISHA TIMOTHY NAABAASA/YEAR 2 SEMESTER 1/Big Data Analytics and Technologies/Assignments/Main Practical Folder/Notebooks")
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+file.exists("DiamondPricesData.xlsx")
+```
+#Install and load necessary libraries
+
+```{r install missing necessary libraries}
+required_packages <- c("readxl", "dplyr", "tidyr","ggplot2", "corrplot", "gridExtra")
+
+missing_packages <- setdiff(required_packages,rownames(installed.packages()))
+
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages)
+}
+```
+
+```{r global installation of tidyr package}
+install.packages(c("purrr", "tidyr"), lib = "C:/Program Files/R/R-4.6/library")
+
+```
+
+
+```{r load libraries}
+# Read Excel files
+library(readxl)
+
+# Manipulate and transform data frames
+library(dplyr)
+
+# Reshape data for faceted graphs
+library(tidyr)
+
+# Create graphs
+library(ggplot2)
+
+# Draw a correlation heatmap
+library(corrplot)
+
+# Arrange several ggplot graphs in one figure
+library(gridExtra)
+
+```
+
+#Import the dataset
+
+```{r read excel workbook}
+data <- read_excel("DiamondPricesData.xlsx")
+
+```
+
+#Inspection of the Data
+
+```{r}
+data
+```
+
+```{r}
+dim(data)
+```
+
+```{r}
+str(data)
+```
+
+```{r}
+sapply(data, class)
+#sapply() applies a function repeatedly. Here the dataset is data and the function is class, so the command asks R to report the class of each column.
+```
+
+#Change categorical variables to factors
+
+```{r}
+data <- data %>%mutate(across(c(cut, color, clarity),as.factor))
+
+#%>% is the pipe operator and can be read as “then”. mutate() creates or modifies columns. across() applies the same operation to several selected columns. as.factor() converts a variable to an R factor so R treats it as categorical.
+```
+
+```{r confirm conversion}
+sapply(data, class)
+
+```
+
+#Summarize the dataset and category levels
+
+```{r}
+summary(data)
+
+#summary() reports descriptive statistics for numeric columns and category counts for factor columns.
+```
+
+```{r}
+lapply(data[c("cut", "color", "clarity")],levels)
+
+#lapply(..., levels) displays the category levels of each selected factor.
+```
+
+#Identify and remove duplicate values
+
+```{r}
+sum(duplicated(data))
+```
+
+```{r}
+data_new <- distinct(data)
+
+#distinct() comes from dplyr and keeps unique rows.
+```
+
+```{r}
+cat("Shape after deleting duplicate values:", nrow(data_new), "rows,", ncol(data_new), "columns\n")
+
+#cat() only prints a readable message; it does not perform the duplicate removal. nrow() counts rows and ncol() counts columns.
+```
+
+```{r}
+# Shape before removing duplicates
+dim(data)
+
+# Shape after removing duplicates
+dim(data_new)
+```
+
+#Separate categorical and continuous variables
+
+```{r}
+cat <- data_new %>% select(where(is.factor))
+
+head(cat)
+```
+
+```{r}
+cont <- data_new %>% select(where(is.numeric))
+
+head(cont)
+```
+
+**Analytical Problem**: We want to predict price using the other variable predictors (independent variables). Because the dependent variable, price, is a continuous variable, we shall use supervised regression.
+
+
+#Distribution of the target variable
+
+```{r}
+ggplot(data_new, aes(x = price)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +    # Divide the observed price range into 30 bins
+  labs(title = "Distribution of diamond price", x = "Price", y = "Count") +     # Add a title and axis labels
+  theme_minimal()
+
+```
+**Interpretation**: This graph describes price as heavily right-skewed: many diamonds occur at lower prices, with a long tail extending to much more expensive diamonds. Thus the data is not normally distributed.
+
+```{r}
+summary(data_new)
+```
+**Interpretation**: This summary alerts us that there's more work to be done, especially with the dealing of outliers and missing values. These must be taken care of before we visualize for insights.
+
+
+
+#Compare distributions of categorical and numerical variables
+
+```{r categorical}
+
+plot_bar_charts <- function(data, cols) {
+  plots <- lapply(cols, function(col) {
+  ggplot(data, aes(x = .data[[col]])) +
+
+  geom_bar(fill = "forestgreen") +
+
+  labs(title = col) +
+  theme_minimal()
+  })
+  
+  grid.arrange(grobs = plots, nrow = 1)
+  }
+  
+  plot_bar_charts(
+  data_new,
+  c("cut", "color", "clarity")
+  )
+```
+**Interpretation**:
+
+
+```{r}
+
+data_new %>% select(carat, depth, table, x, y, z) %>% tidyr::pivot_longer(everything(), names_to = "variable",
+  values_to = "value") %>%
+
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = "violet", color = "white") +
+  facet_wrap(~variable, scales = "free") +
+  theme_minimal()
+```
+**Interpretation**:
+
+
+#Investigate and Handle Outliers
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
