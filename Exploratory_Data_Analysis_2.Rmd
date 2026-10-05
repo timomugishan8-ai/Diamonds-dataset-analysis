@@ -31,6 +31,19 @@ if (length(missing_packages) > 0) {
 install.packages(c("purrr", "tidyr"), lib = "C:/Program Files/R/R-4.6/library")
 
 ```
+```{r}
+remove.packages("tibble")
+```
+
+
+```{r}
+install.packages("tibble")
+```
+
+
+```{r}
+library(tibble)
+```
 
 
 ```{r load libraries}
@@ -207,21 +220,252 @@ data_new %>% select(carat, depth, table, x, y, z) %>% tidyr::pivot_longer(everyt
 
 
 #Investigate and Handle Outliers
+    In this activity, we will use the low-end and high-end replacement technique. Low-end and high-end replacement is an outlier-handling technique where, instead of deleting extreme observations, you replace values that are too low or too high with reasonable boundary values.
+    It is closely related to winsorization, but the terminology can vary depending on the course or implementation:
+    
+Low-end replacement → extreme low values are replaced.
+High-end replacement → extreme high values are replaced.
+
+```{r}
+# Function for low- and high-end replacement
+replace_outliers <- function(x) {
+  
+  # Calculate Q1 and Q3
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  
+  # Calculate IQR
+  IQR_value <- Q3 - Q1
+  
+  # Calculate boundaries
+  lower <- Q1 - 1.5 * IQR_value
+  upper <- Q3 + 1.5 * IQR_value
+  
+  # Low-end replacement
+  x[x < lower] <- lower
+  
+  # High-end replacement
+  x[x > upper] <- upper
+  
+  return(x)
+}
 
 
+# Replace the values while keeping the original variable names
+data_new$x <- replace_outliers(data_new$x)
+data_new$y <- replace_outliers(data_new$y)
+data_new$z <- replace_outliers(data_new$z)
+
+```
+
+```{r Visualize results}
+data_new %>% select(x, y, z) %>% tidyr::pivot_longer(everything(), names_to = "variable",
+  values_to = "value") %>%
+
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = "tan", color = "white") +
+  facet_wrap(~variable, scales = "free") +
+  theme_minimal()
+```
+
+**Observation**:
 
 
+#Identify and Handle missing data
+```{r}
+colSums(is.na(data_new))
+```
 
 
+```{r}
+data_new$depth[is.na(data_new$depth)] <- median(data_new$depth,na.rm = TRUE)
+```
 
 
+```{r}
+colSums(is.na(data_new))
+```
+
+##EXPLORATION OF RELATIONSHIPS WITH VISUALIZATIONS AND TESTS
+
+#1. Continuous Predictors against Price
+```{r}
+# Create a vector containing the continuous predictors
+
+continuous_cols <- c("carat", "depth", "table", "x", "y", "z")
+```
 
 
+```{r}
+#Generate one scatter plot per predictor
+
+for (predictor in continuous_cols) {
+  p <- ggplot(data_new,aes(x = .data[[predictor]],y = price)) +
+
+  geom_point(alpha = 0.15, color = "steelblue") +        # alpha makes dense point clouds more transparent
+
+  labs(title = paste(predictor, "vs price")) +
+  theme_minimal()
+
+  print(p)
+}
+```
+
+**Interpretation**: An increasing pattern means there is a positive association, a negative pattern shows negative association, and no obvious pattern indicates weak/no visible linear association. The drawn graphs report strong increasing trends for carat, x, y, and z, while depth and table show little visible relationship with price.
 
 
+#Remove extreme dimension rows
+```{r}
+data_filter <-data_new$z > 2.06 & data_new$z < 6.5
+```
 
 
+```{r}
+# Keep rows for which data_filter is TRUE
+data_new <- data_new[data_filter, ]
+
+# Count the remaining observations
+nrow(data_new)
+```
 
 
+```{r replot}
+for (predictor in continuous_cols) {
+  p <- ggplot(data_new,aes(x = .data[[predictor]],y = price)) +
+  
+  geom_point(alpha = 0.15,color = "tomato") +
+  
+  labs(title = paste(predictor,"vs price (after outlier removal)")) +
+  
+  theme_minimal()
+  print(p)
+  }
+```
 
+#Measure the strength and direction of the predictors with price
+
+```{r Select Numerical Predictors, plus target}
+correlation_cols <- c("price", "carat", "depth","table", "x", "y", "z")
+```
+
+
+```{r Calculate correlation Matrix}
+correlation_data <- cor(data_new[, correlation_cols])
+```
+*Note*: cor() calculates Pearson correlation by default. The result is a square matrix in which each cell contains the correlation coefficient for a pair of numeric variables.
+
+
+```{r Draw correlation heatmap(upper triangle)}
+corrplot(correlation_data,method = "color",type = "upper", addCoef.col = "black",number.cex = 0.8,
+  title = "Correlation matrix of diamond variables",mar = c(0, 0, 2, 0))
+```
+*Note*: "method = "color"" represents correlations using a color scale; type = "upper" displays only the upper triangular half; "addCoef.col" adds the numeric coefficients.
+
+```{r Extract correlations with price}
+# Take the price column from the correlation matrix
+price_corr <- correlation_data[, "price"]
+
+sort(price_corr[abs(price_corr) > 0.5],decreasing = TRUE)   
+# Keep only variables whose absolute correlation with price exceeds 0.5
+# Sort the retained correlations from largest to smallest
+```
+
+#Explore categorical predictors
+```{r}
+categorical_cols <- c("cut", "color", "clarity")
+```
+
+
+```{r}
+box_plots <- lapply(categorical_cols,function(col) {
+  ggplot(data_new,aes(x = .data[[col]],y = price)) +
+  
+  geom_boxplot(fill = "yellow") + labs(title = paste("price by", col)) +
+  
+  theme_minimal()
+  }
+  )
+
+# Place the three boxplots in a single row
+grid.arrange(
+grobs = box_plots,
+nrow = 1
+)
+```
+*Note*: A firmal significance test is still required to deduce whoch category associates with the target varibale
+
+*Hypotheses*
+- H0 (null hypothesis): the mean price is the same across all categories of the predictor. 
+
+- HA (alternative hypothesis): at least one category has a different mean price.
+
+- Decision rule: If p-value < 0.05, reject H0 and treat the predictor as statistically associated with price for this practical. If p-value ≥ 0.05, fail to reject H0.
+```{r Test using ANOVA}
+function_anova <- function(data,target_variable,categorical_predictors) {
+
+  selected_predictors <- c()                    # Start with an empty vector for variables that pass the test
+  cat("##### ANOVA Results #####\n\n")
+ 
+  for (predictor in categorical_predictors) {
+    formula <- as.formula(paste(target_variable, "~", predictor))       # Build a formula such as: price ~ cut
+    anova_result <- summary(aov(formula, data = data))                  # Fit the ANOVA model and obtain its summary table
+
+    p_value <-
+    anova_result[[1]][["Pr(>F)"]][1]                                    # Extract the first p-value from the ANOVA table
+    
+
+    if (p_value < 0.05) {                                               # Apply the 0.05 decision rule
+      cat(predictor,"is correlated with",target_variable,"| P-Value:",p_value,"\n")
+      
+      selected_predictors <- c(selected_predictors,predictor)           # Add the significant predictor to the selection vector
+      } 
+    else {
+      cat(predictor,"is NOT correlated with",target_variable,"| P-Value:",p_value,"\n")
+      }
+      }
+  
+  
+  return(selected_predictors)                                         # Return the predictors that passed the significance rule
+  }
+
+```
+
+
+```{r Run the function}
+categorical_predictor_list <- c("cut", "color", "clarity")
+
+# Test each categorical predictor against price
+selected_categorical <- function_anova(data_new,"price",categorical_predictor_list)
+
+selected_categorical
+
+```
+
+# Combine the continuous variables retained by correlation screening with the categorical variables retained by ANOVA.
+```{r Define selected predictor names}
+selected_columns <- c("carat", "x", "y", "z","cut", "color", "clarity")
+```
+
+
+```{r Create a predictor-only dataset}
+data_for_ml <- data_new[, selected_columns]
+
+head(data_for_ml)
+```
+
+**Conclusion**: This practical excludes depth and table because they fall below the chosen correlation threshold with price. The seven retained columns are presented as the candidate predictor set for later regression modelling.
+
+
+#Summary
+```{r}
+# Confirm the final number of observations and variables
+dim(data_new)
+
+# Confirm that no missing values remain
+colSums(is.na(data_new))
+
+# Inspect the selected predictor dataset
+str(data_for_ml)
+head(data_for_ml)
+```
 
