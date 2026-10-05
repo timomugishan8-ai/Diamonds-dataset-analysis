@@ -239,10 +239,10 @@ For a cleaner reproduction workflow, place the repository on your local machine 
 
 ### Author
 
-**Timothy Mugisha**  
+**Mugisha Timothy Naabaasa**  
 Data Science & Analytics Student | ML Enthusiast | BI Developer
 
 - GitHub: [@timomugishan8-ai](https://github.com/timomugishan8-ai)
-- LinkedIn: [Timothy Mugisha](https://www.linkedin.com/in/timothy-mugisha-39ba2a2b/)
+- LinkedIn: [Timothy Mugisha](www.linkedin.com/in/timothy-mugisha-39ba2a2b9)
 
 If this project is useful, feel free to explore the repository and connect.
